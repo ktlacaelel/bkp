@@ -1,0 +1,4 @@
+#!/usr/bin/env ruby
+
+system "cd #{__dir__}/../ && OLDPWD=#{Dir.pwd} ona #{ARGV.join(' ')}"
+

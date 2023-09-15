@@ -1,0 +1,133 @@
+#!/usr/bin/env ruby
+
+require 'yaml'
+require 'time'
+require 'tmpdir'
+require 'json'
+require 'fileutils'
+require './lib/validations.rb'
+require './lib/helpers.rb'
+
+if ENV['OLDPWD']
+  Dir.chdir(ENV['OLDPWD'])
+end
+
+config_check
+
+Ona.prompt = 'bkp'
+
+Ona.resource(:backup, [
+  :background,
+  :bucket,
+  :date,
+  :name,
+  :owner,
+  :summary,
+  :ticket,
+  :path,
+  :directory
+])
+
+reload_manifests
+
+Ona.action(
+  :regex    => /(^)(ls)($)/,
+  :resource => :backup,
+  :text     => "List backups.",
+  :example  => "ls"
+) do |items, command, regex|
+  items.sort do |a, b|
+    Time.parse(a.date) <=> Time.parse(b.date)
+  end.each_with_index do |item, id|
+    pretty_backup_list(id, item)
+  end
+end
+
+Ona.action(
+  :regex    => /(^)(new)($)/,
+  :resource => :backup,
+  :text     => "Creates a new backup config file.",
+  :example  => "new"
+) do |items, command, regex|
+  generate_template
+end
+
+Ona.action(
+  :regex    => /(^)(check)(\s+)(.*)($)/,
+  :resource => :backup,
+  :text     => "Validates a backup config file.",
+  :example  => "check [FILENAME]"
+) do |items, command, regex|
+  file = command.scan(regex)[0][3]
+  file.gsub!(/(\s+$)/, '')
+  load_file(file)
+end
+
+Ona.action(
+  :regex    => /(^)(upload)(\s+)(.*)($)/,
+  :resource => :backup,
+  :text     => "Uploads backups from config file.",
+  :example  => "upload [FILENAME]"
+) do |items, command, regex|
+  file = command.scan(regex)[0][3]
+  file.gsub!(/(\s+$)/, '')
+  backups = load_file(file)
+  unless Ona.confirm('Are you sure you want to upload these backups?', 'yes')
+    next
+  end
+  backups.each do |backup|
+    create_backup(backup)
+  end
+end
+
+Ona.action(
+  :regex    => /(^)(sync)($)/,
+  :resource => :backup,
+  :text     => "Reads remote backups so they can be evaluated locally.",
+  :example  => "sync"
+) do |items, command, regex|
+  download_manifests
+  reload_manifests
+end
+
+Ona.action(
+  :regex    => /(^)(show)(\s+)(.*)($)/,
+  :resource => :backup,
+  :text     => "Shows a backup config file.",
+  :example  => "show [NUMBER]",
+) do |items, command, regex|
+  queried_id = command.scan(regex)[0][3]
+  if queried_id =~ /\d+/
+    queried_id = queried_id.to_i
+  else
+    next
+  end
+  items.sort do |a, b|
+    Time.parse(a.date) <=> Time.parse(b.date)
+  end.each_with_index do |backup, id|
+    if id == queried_id
+      pretty_backup_body(id, backup)
+    end
+  end
+end
+
+Ona.action(
+  :regex    => /(^)(download)(\s+)(.*)($)/,
+  :resource => :backup,
+  :text     => 'Download a remote backup',
+  :example  => "download [NUMBER]",
+) do |items, command, regex|
+  queried_id = command.scan(regex)[0][3]
+  if queried_id =~ /\d+/
+    queried_id = queried_id.to_i
+  else
+    next
+  end
+  items.sort do |a, b|
+    Time.parse(a.date) <=> Time.parse(b.date)
+  end.each_with_index do |backup, id|
+    if id == queried_id
+      run_command('aws s3 cp ' + s3_path(backup) + ' .' )
+    end
+  end
+end
