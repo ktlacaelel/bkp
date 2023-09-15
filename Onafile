@@ -39,7 +39,7 @@ Ona.action(
   items.sort do |a, b|
     Time.parse(a.date) <=> Time.parse(b.date)
   end.each_with_index do |item, id|
-    pretty_backup_list(id, item)
+    puts pretty_backup_list(id, item)
   end
 end
 
@@ -129,5 +129,34 @@ Ona.action(
     if id == queried_id
       run_command('aws s3 cp ' + s3_path(backup) + ' .' )
     end
+  end
+end
+
+Ona.action(
+  :regex    => /(^)(s)(\s+)(.*)($)/,
+  :resource => :backup,
+  :text     => 'Search in local manifests',
+  :example  => "s [REGEX]",
+) do |items, command, regex|
+  query = command.scan(regex)[0][3]
+  search = Regexp.new(query, Regexp::IGNORECASE)
+  items.sort do |a, b|
+    Time.parse(a.date) <=> Time.parse(b.date)
+  end.each_with_index do |backup, id|
+    search_in = [
+      backup.name,
+      backup.directory,
+      backup.path,
+      backup.summary,
+      backup.ticket,
+      backup.owner,
+      backup.date
+    ]
+    next unless search_in.any? { |s| s =~ search }
+    s = pretty_backup_list(id, backup)
+    r = s.gsub(search) do |match|
+      match.to_s.to_ansi.red.to_s
+    end
+    puts r
   end
 end

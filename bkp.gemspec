@@ -1,6 +1,6 @@
 Gem::Specification.new do |spec|
   spec.name = %q{bkp}
-  spec.version = "1.0.1"
+  spec.version = "1.0.2"
   spec.date = %q{2023-07-29}
   spec.summary = %q{bkp - Shell Backup Management Tool (for AWS S3 Buckets)}
   spec.author = 'Kazuyoshi Tlacaelel'

@@ -193,7 +193,7 @@ def pretty_backup_list(id, backup)
   pretty_id     = id.to_s.to_s.rjust(5, ' ').to_ansi.cyan.to_s
   pretty_name   = 'name'.to_ansi.green.to_s
   pretty_date   = backup.date.to_ansi.yellow.to_s
-  puts "#{pretty_id} - [#{pretty_date}] #{pretty_name}: #{backup.name}"
+  "#{pretty_id} - [#{pretty_date}] #{pretty_name}: #{backup.name}"
 end
 
 def pretty_backup_body(id, backup)
